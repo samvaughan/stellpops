@@ -529,8 +529,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
     elem_steps=[-0.45, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.45]
     Na_elem_steps=[-0.45, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     positive_only_elem_steps=[0.0, 0.1, 0.2, 0.3, 0.45]
-    T_steps=[-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5] #In units of 100k. Otherwise we have a (10**40-1)/(10**50-1) in our correction factor, which isn't okay. Not sure if this is the right way to do it though...
-
+    T_steps=[-50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0]
 
     x=var_elem_spectra['Solar'].lam[t_mask]
     y=var_elem_spectra['Solar'].flam[-1, -1, t_mask]
@@ -548,6 +547,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
     general_templates=np.empty((len(normal_elems), len(elem_steps), n_ages, n_Zs, len(sspNew)))
     
     na_templates=np.empty((len(Na_elem_steps), n_ages, n_Zs, len(sspNew)))
+    T_templates=np.empty((len(T_steps), n_ages, n_Zs, len(sspNew)))
 
     print 'Making the Positive-Only Correction templates'
     #Do the positve only correction templates:
@@ -696,7 +696,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
                     T_step=np.abs(step)
             
                 if step !=0.0:
-                    y=(var_elem_spectra[e].flam[b, c, t_mask]/var_elem_spectra['Solar'].flam[b, c, t_mask]-1)*((10**(T_step)-1.0)/(10**(0.5)-1.0))
+                    y=(var_elem_spectra[e].flam[b, c, t_mask]/var_elem_spectra['Solar'].flam[b, c, t_mask]-1)*(T_step/50.0)
 
                 else:
 
@@ -720,11 +720,11 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
 
                     
                 sspNew, logLam_template, template_velscale = util.log_rebin(templates_lam_range, data, velscale=velscale)
-                na_templates[a, b, c, :]=sspNew
+                T_templates[a, b, c, :]=sspNew
 
 
 
-    return [general_templates, na_templates, positive_only_templates], logLam_template
+    return [general_templates, na_templates, positive_only_templates, T_templates], logLam_template
 
 
 
@@ -751,25 +751,28 @@ def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements
 
     all_corrections, logLam_template=prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verbose=verbose)
 
-    general_templates, na_templates, positive_only_templates=all_corrections
+    general_templates, na_templates, positive_only_templates, T_templates=all_corrections
 
     positive_only_elems, Na_elem, normal_elems=elements
 
 
-
-    ages=np.array([  1.,   3.,   5.,   9.,  13.])
+    #It's not clear if the last value here should be 13.5 or 13
+    ages=np.array([  1.,   3.,   5.,   9.,  13.0])
     Zs=[-1.5, -1.0, -0.5, 0.0, 0.2]
 
 
     elem_steps=[-0.45, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.45]
     Na_elem_steps=[-0.45, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     positive_only_elem_steps=[0.0, 0.1, 0.2, 0.3, 0.45]
+    T_steps=[-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
 
     # np.save('na_templates.npy', na_templates)
     # np.save('general_templates.npy', general_templates)
 
     general_interp=si.RegularGridInterpolator(((np.arange(len(normal_elems)), elem_steps, ages, Zs, logLam_template)), general_templates, bounds_error=False, fill_value=None, method='linear')
     na_interp=si.RegularGridInterpolator(((Na_elem_steps, ages, Zs, logLam_template)), na_templates, bounds_error=False, fill_value=None, method='linear')
+
+    T_interp=si.RegularGridInterpolator(((T_steps, ages, Zs, logLam_template)), T_templates, bounds_error=False, fill_value=None, method='linear')
 
     #If we only have one positive element to check, we need to do something different- can't have a dimension with only one element in RegularGridInterpolator apparently.
     if len(positive_only_elems)>1:
@@ -780,7 +783,7 @@ def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements
 
     #import pdb; pdb.set_trace()
 
-    correction_interps=[general_interp, na_interp, positive_only_interp]
+    correction_interps=[general_interp, na_interp, positive_only_interp, T_interp]
 
     return correction_interps, logLam_template
 
