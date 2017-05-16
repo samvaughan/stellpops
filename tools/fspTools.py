@@ -764,7 +764,7 @@ def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements
     elem_steps=[-0.45, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.45]
     Na_elem_steps=[-0.45, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     positive_only_elem_steps=[0.0, 0.1, 0.2, 0.3, 0.45]
-    T_steps=[-0.5, -0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    T_steps=[-50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0]
 
     # np.save('na_templates.npy', na_templates)
     # np.save('general_templates.npy', general_templates)
