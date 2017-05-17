@@ -512,7 +512,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
     import os
     template_glob=os.path.expanduser('~/z//Data/stellarpops/CvD2/vcj_models/VCJ_*.s100')
 
-    var_elem_spectra=CT.load_varelem_CvD16ssps(dirname=os.path.expanduser('~/z/Data/stellarpops/CvD2'), folder='atlas_rfn_v3', element_imf='kroupa')
+    var_elem_spectra=CT.load_varelem_CvD16ssps(dirname=os.path.expanduser('~/z/Data/stellarpops/CvD2'), folder='atlas_rfn_v3', imf='kroupa')
 
     ages=var_elem_spectra['Solar'].age[:, 0]
     Zs=var_elem_spectra['Solar'].Z[0, :]
