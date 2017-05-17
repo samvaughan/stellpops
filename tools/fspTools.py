@@ -505,14 +505,14 @@ def prepare_CvD2_templates(templates_lam_range, velscale, verbose=True):
     return templates, logLam_template
 
 
-def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verbose=True):
+def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verbose=True, element_imf='kroupa'):
 
     import glob
 
     import os
     template_glob=os.path.expanduser('~/z//Data/stellarpops/CvD2/vcj_models/VCJ_*.s100')
 
-    var_elem_spectra=CT.load_varelem_CvD16ssps(dirname=os.path.expanduser('~/z/Data/stellarpops/CvD2'), folder='atlas_rfn_v3', imf='salp')
+    var_elem_spectra=CT.load_varelem_CvD16ssps(dirname=os.path.expanduser('~/z/Data/stellarpops/CvD2'), folder='atlas_rfn_v3', element_imf='kroupa')
 
     ages=var_elem_spectra['Solar'].age[:, 0]
     Zs=var_elem_spectra['Solar'].Z[0, :]
@@ -747,9 +747,9 @@ def prepare_CvD_interpolator(templates_lam_range, velscale, verbose=True):
 ################################################################################################################################################################
 
 ################################################################################################################################################################
-def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements, verbose=True):
+def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements, verbose=True, element_imf='kroupa'):
 
-    all_corrections, logLam_template=prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verbose=verbose)
+    all_corrections, logLam_template=prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verbose=verbose, element_imf=element_imf)
 
     general_templates, na_templates, positive_only_templates, T_templates=all_corrections
 
