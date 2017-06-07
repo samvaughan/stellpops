@@ -31,9 +31,15 @@ prettyPrint = {'CN_1':r'CN$_1$', \
                'Hdelta_F':r'H$\delta_F$', \
                'Hgamma_A':r'H$\gamma_A$', \
                'Hgamma_F':r'H$\gamma_F$', \
-               'CaII86': r'CaT', \
+               'CaII86_1': r'CaT', \
+               'CaII86_2': r'CaT', \
+               'CaII86_3': r'CaT', \
+               'CaT': r'CaT', \
                'FeH': r'FeH', \
-               'NaIsdss': r'NaI$_{SDSS}$'
+               'NaIsdss': r'NaI$_{SDSS}$', \
+               'NaI8190': r'NaI$_{8190}$',\
+               'MgI88':r'MgI$_{8800}$', \
+               'TiO89':r'TiO$_{8900}$'
                }
 
 
@@ -183,7 +189,8 @@ class ind(dict):
         if justLine:
             for nf in xrange(self['nfeat']):
                 for istart, istop in zip(self['ind_start'], self['ind_stop']):
-                    meanPos = 0.5*(istart+istop)
+                    #import pdb; pdb.set_trace()
+                    meanPos = 0.5*np.array((istart+istop))
                     ax.plot([meanPos*scale, meanPos*scale], [ymin,ymax*linePos], "k:")
         else:
             for nf in xrange(self['nfeat']):
@@ -474,7 +481,32 @@ def getLickIndicesVac(filename="/Data/stellarpops/index_definitions/lickIndicesA
     return inds
 
 
-def getCvD12IndicesVac(filename="/Data/stellarpops/index_definitions/CvDIndicesVac.txt", verbose=True):
+def getSpinielloIndicesAir(filename='/Data/stellarpops/index_definitions/SpinielloIndicesAir.txt', verbose=False):
+
+    tab = Table.read(filename, format='ascii')
+
+    inds=indlib(table=tab,verbose=verbose)
+
+    return inds
+
+
+def getSpinielloIndicesVac(filename='/Data/stellarpops/index_definitions/SpinielloIndicesAir.txt', verbose=False):
+
+    tab = Table.read(filename, format='ascii')
+
+    nline=len(tab)
+    ncol=len(tab.colnames)
+    for nli in xrange(nline):
+        for nci in xrange(1,ncol):
+            tab[nli][nci] = vac2air(tab[nli][nci],verbose=verbose)
+
+    inds=indlib(table=tab,verbose=verbose)
+
+    return inds
+
+
+
+def getCvD12IndicesVac(filename="/Data/stellarpops/index_definitions/CvDIndicesVac.txt", verbose=False):
     """
     Load the indicies presented in Table 1 of Conroy & van Dokkum 2012a
 
@@ -504,7 +536,7 @@ def getCvD12IndicesVac(filename="/Data/stellarpops/index_definitions/CvDIndicesV
 
     return inds
 
-def getCvD12IndicesAir(filename="/Data/stellarpops/index_definitions/CvDIndicesVac.txt", verbose=True):
+def getCvD12IndicesAir(filename="/Data/stellarpops/index_definitions/CvDIndicesVac.txt", verbose=False):
     """
     Load the indicies presented in Table 1 of Conroy & van Dokkum 2012a
 

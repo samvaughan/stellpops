@@ -13,15 +13,20 @@ def lnlike_CvD(theta, parameters, plot=False):
 
     galaxy, noise, velscale, goodpixels, vsyst, interp_funct, correction_interps, logLams, logLam_gal, fit_wavelengths, plot_wavelengths=parameters
 
+    galmed=np.median(galaxy)
+    galaxy/=galmed
+    noise/=galmed
 
-
-    general_interp, na_interp, positive_only_interp=correction_interps
+    general_interp, na_interp, positive_only_interp, T_interp=correction_interps
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3:-3]
-    positive_abundances=theta[-3]
-    Z, imf=theta[-2:]
+    general_abundances=theta[3]
+    positive_abundances=theta[4]
+    T=theta[5]
+    Z=theta[6]
+    imf=theta[7]
+
     
     #Don't fit age- keep it fixed at 13.5 Gyr
     age=13.5
@@ -37,13 +42,19 @@ def lnlike_CvD(theta, parameters, plot=False):
         positive_only_correction=get_correction(positive_only_interp, logLams, np.arange(len(positive_abundances)), positive_abundances, age, Z)
 
 
+    #import pdb; pdb.set_trace()
+    if not hasattr(positive_abundances,'__iter__'):
+        general_correction=general_interp((general_abundances, age, Z, logLams))
+    else:
+        general_correction=get_correction(general_interp, logLams, np.arange(len(general_abundances)), general_abundances, age, Z)
 
-    general_correction=get_correction(general_interp, logLams, np.arange(len(general_abundances)), general_abundances, age, Z)   
 
     na_correction=na_interp((Na_abundance, age, Z, logLams))
 
+    T_correction=T_interp((T, age, Z, logLams))
+
     #old_template=template*general_correction*positive_only_correction*na_correction
-    template=np.exp(np.log(base_template)+general_correction+positive_only_correction+na_correction)
+    template=np.exp(np.log(base_template)+general_correction+positive_only_correction+na_correction+T_correction)
 
 
 
@@ -51,7 +62,7 @@ def lnlike_CvD(theta, parameters, plot=False):
 
     temp=convolve_template_with_losvd(template, vel, sigma, velscale=velscale, vsyst=vsyst)[:len(galaxy)]
 
-    chisq=0
+    
 
     fit_ranges=fit_wavelengths*(np.exp(vel/c_light))
     plot_ranges=plot_wavelengths*(np.exp(vel/c_light))
@@ -80,21 +91,48 @@ def lnlike_CvD(theta, parameters, plot=False):
 
 
 
+    def make_mask(logLam_gal, wavelengths):
+        mask=np.ones_like(logLam_gal, dtype=bool)
+        for pair in wavelengths:
+            low, high=pair
+            #import pdb; pdb.set_trace()
+            mask = mask & ((np.exp(logLam_gal)<low) | (np.exp(logLam_gal)>high))
+
+        return mask
+
+
+
+    #mask telluric features and H alpha
+    telluric_lams=[[6718, 6870], [7454, 7574]]
+    telluric_mask=make_mask(logLam_gal, telluric_lams)
+
+    Ha_lam=[[6519, 6618]]
+    Ha_mask=make_mask(logLam_gal, Ha_lam)
+
+    pixel_mask=telluric_mask & Ha_mask
+
+
+    chisqs=np.zeros_like(galaxy)
+    #import pdb; pdb.set_trace()
     for i, fit_range in enumerate(fit_ranges):
         #tmask=np.where((np.exp(logLams)>fit_range[0]) & (np.exp(logLams)<fit_range[1]))
-        gmask=np.where((np.exp(logLam_gal)>fit_range[0]) & (np.exp(logLam_gal)<fit_range[1]))
+        gmask=(np.exp(logLam_gal)>fit_range[0]) & (np.exp(logLam_gal)<fit_range[1])
+        
     
+        #import pdb; pdb.set_trace()
         g=galaxy[gmask]
         n=noise[gmask]
         t=temp[gmask]
 
         morder=int((fit_range[1]-fit_range[0])/100)
-        print morder
+        #import pdb; pdb.set_trace()
+        #print morder
         poly=fit_legendre_polys(g/t, morder)
 
+        chisqs[gmask]=(((g-t*poly)/n)**2)
 
-        chisq+=np.sum((((g-t*poly)/n)**2))
 
+    chisq=np.sum(chisqs[pixel_mask])
 
 
 
@@ -104,6 +142,8 @@ def lnlike_CvD(theta, parameters, plot=False):
 
 
             gmask=np.where((np.exp(logLam_gal)>plot_range[0]) & (np.exp(logLam_gal)<plot_range[1]))
+
+            #import pdb; pdb.set_trace()
     
             g_plot=g[gmask]
             n_plot=n[gmask]
@@ -131,7 +171,13 @@ def lnlike_CvD(theta, parameters, plot=False):
             axs[i, 0].yaxis.set_major_locator(ticker.MaxNLocator(prune='lower'))
             axs[i, 1].yaxis.set_major_locator(ticker.MultipleLocator(2))
 
-      
+            for pair in telluric_lams:
+                axs[i, 0].axvspan(pair[0], pair[1], alpha=0.5, color='grey')
+                axs[i, 1].axvspan(pair[0], pair[1], alpha=0.5, color='grey')
+
+            axs[i, 0].axvspan(Ha_lam[0][0], Ha_lam[0][1], alpha=0.5, color='grey')
+            axs[i, 1].axvspan(Ha_lam[0][0], Ha_lam[0][1], alpha=0.5, color='grey')
+
             
             
 
@@ -160,17 +206,21 @@ def lnprior_CvD(theta):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3:-3]
-    positive_abundances=theta[-3]
-    Z, imf=theta[-2:]
+    general_abundances=theta[3]
+    positive_abundances=theta[4]
+    T=theta[5]
+    Z=theta[6]
+    imf=theta[7]
     
     #Don't fit age- keep it fixed at 13.5 Gyr
     age=13.5
 
     if -1000.0 < vel < 10000.0 and 0.0 < sigma < 500.0:
 
-        if np.all(general_abundances>=-0.45) and np.all(general_abundances<=0.45)  and np.all(positive_abundances>=0.0) and np.all(positive_abundances<=0.45) and -0.45 <= Na_abundance <= 1.0 and 1.0 < age <= 14.0 and -0.5 < Z < 0.4 and 0.5 < imf <3.5:
-            return 0.0
+        if np.all(general_abundances>=-0.45) and np.all(general_abundances<=0.45)  and np.all(positive_abundances>=0.0) and np.all(positive_abundances<=0.45) and -0.45 <= Na_abundance <= 1.0: 
+            if 1.0 < age <= 14.0 and -0.5 < Z < 0.4 and 0.5 < imf <3.5:
+                if -50.0 < T < 50.0:
+                    return 0.0
 
     return -np.inf
 
@@ -512,7 +562,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
     import os
     template_glob=os.path.expanduser('~/z//Data/stellarpops/CvD2/vcj_models/VCJ_*.s100')
 
-    var_elem_spectra=CT.load_varelem_CvD16ssps(dirname=os.path.expanduser('~/z/Data/stellarpops/CvD2'), folder='atlas_rfn_v3', imf='kroupa')
+    var_elem_spectra=CT.load_varelem_CvD16ssps(dirname=os.path.expanduser('~/z/Data/stellarpops/CvD2'), folder='atlas_rfn_v3', imf=element_imf)
 
     ages=var_elem_spectra['Solar'].age[:, 0]
     Zs=var_elem_spectra['Solar'].Z[0, :]
@@ -769,7 +819,7 @@ def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements
     # np.save('na_templates.npy', na_templates)
     # np.save('general_templates.npy', general_templates)
 
-    general_interp=si.RegularGridInterpolator(((np.arange(len(normal_elems)), elem_steps, ages, Zs, logLam_template)), general_templates, bounds_error=False, fill_value=None, method='linear')
+    
     na_interp=si.RegularGridInterpolator(((Na_elem_steps, ages, Zs, logLam_template)), na_templates, bounds_error=False, fill_value=None, method='linear')
 
     T_interp=si.RegularGridInterpolator(((T_steps, ages, Zs, logLam_template)), T_templates, bounds_error=False, fill_value=None, method='linear')
@@ -780,7 +830,10 @@ def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements
     else:
         positive_only_interp=si.RegularGridInterpolator((positive_only_elem_steps, ages, Zs, logLam_template), positive_only_templates[0, :], bounds_error=False, fill_value=None, method='linear')
 
-
+    if len(normal_elems)>1:
+        general_interp=si.RegularGridInterpolator(((np.arange(len(normal_elems)), elem_steps, ages, Zs, logLam_template)), general_templates, bounds_error=False, fill_value=None, method='linear')
+    else:
+        general_interp=si.RegularGridInterpolator((elem_steps, ages, Zs, logLam_template), general_templates[0, :], bounds_error=False, fill_value=None, method='linear')
     #import pdb; pdb.set_trace()
 
     correction_interps=[general_interp, na_interp, positive_only_interp, T_interp]
@@ -1039,7 +1092,7 @@ def NGC1277_CVD_read_in_data_MN(file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.da
     ################################################################################################################################################################
 
 
-def NGC1277_CVD_read_in_data_SPV(file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.dat', c=299792.458):
+def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.dat', c=299792.458):
     ##############################################################################################################################################################
 
     # Read in the central spectrum from CvD
@@ -1061,9 +1114,11 @@ def NGC1277_CVD_read_in_data_SPV(file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.d
     # flux/=flux_median
     # errors/=flux_median
  
-    lower=lamdas.min()
-    upper=lamdas.max()
-
+    lower=fit_wavelengths[0][0]
+    upper=fit_wavelengths[-1][-1]
+    # lower=lamdas.min()
+    # upper=lamdas.max()
+    
     assert (lower>=lamdas.min()) & (upper<=lamdas.max()), 'Lower and upper limits must be within the wavelength ranges of the data'
 
     
@@ -1278,24 +1333,26 @@ def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NG
 
 def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', verbose=True):
 
-    fit_wavelengths=np.array([[6300, 10412]])
+    fit_wavelengths=np.array([[6300, 10100]])
 
-    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9600, 10150]])
+    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9600, 10100]])
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']
-    normal_elems=['Ca', 'Fe', 'Ti', 'Mg']
+    #normal_elems=['Ca', 'Fe', 'Ti', 'Mg']
+    normal_elems=['Mg']
 
     #Try not fitting age, since we're not very sensitive to it in the SWIFT range.
     population_params=['Z', 'IMF']
-    kinematic_parmas=['V', 'Sigma']
+    kinematic_params=['V', 'Sigma']
+    nuisance_params=['T']
 
     #assert len(positive_only_elems)==1, 'Need to change the code if you want more than 1 positive element!'
 
     elements=(positive_only_elems, Na_elem, normal_elems)
     
 
-    galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_SPV(file=file, c=c_light)
+    galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file=file, c=c_light)
 
 
     pad=500.0
@@ -1303,13 +1360,14 @@ def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/S
 
     
     linear_interp, logLam_template =prepare_CvD_interpolator(lam_range_temp, velscale, verbose=True)
+
     correction_interps, logLam_template=prepare_CvD_correction_interpolators(lam_range_temp, velscale, elements, verbose=True)
 
 
     dv = c_light*np.log(lam_range_temp[0]/lam_range_gal[0])  # km/s
 
-    #ndim is number of elements plus V, Sigma plus age, IMF and Z
-    ndim=len(positive_only_elems)+len(Na_elem)+len(normal_elems)+len(kinematic_parmas)+len(population_params)
+    #ndim is number of elements plus V, Sigma and plus IMF and Z and T
+    ndim=len(positive_only_elems)+len(Na_elem)+len(normal_elems)+len(kinematic_params)+len(population_params)+len(nuisance_params)
 
 
     return [galaxy, noise, velscale, goodpixels, dv, linear_interp, correction_interps, logLam_template, logLam_gal, fit_wavelengths, plot_wavelengths], logLam_gal, ndim
