@@ -118,8 +118,6 @@ def lnlike_CvD(theta, parameters, plot=False):
         #tmask=np.where((np.exp(logLams)>fit_range[0]) & (np.exp(logLams)<fit_range[1]))
         gmask=(np.exp(logLam_gal)>fit_range[0]) & (np.exp(logLam_gal)<fit_range[1])
         
-    
-        #import pdb; pdb.set_trace()
         g=galaxy[gmask]
         n=noise[gmask]
         t=temp[gmask]
@@ -143,8 +141,8 @@ def lnlike_CvD(theta, parameters, plot=False):
 
             gmask=np.where((np.exp(logLam_gal)>plot_range[0]) & (np.exp(logLam_gal)<plot_range[1]))
 
-            #import pdb; pdb.set_trace()
-    
+            
+
             g_plot=g[gmask]
             n_plot=n[gmask]
             t_plot=t[gmask]
@@ -1092,7 +1090,7 @@ def NGC1277_CVD_read_in_data_MN(file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.da
     ################################################################################################################################################################
 
 
-def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.dat', c=299792.458):
+def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', c=299792.458):
     ##############################################################################################################################################################
 
     # Read in the central spectrum from CvD
@@ -1123,15 +1121,15 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file = '~/z/Data/IMF_Gold_Stan
 
     
 
-    lam_range_gal=np.array([lower, upper])
+    
     mask=np.where((lamdas>lower) & (lamdas<upper))
-
+    lam_range_gal=np.array([lamdas[mask][0], lamdas[mask][-1]])
     # print 'Lam Range Gal is {}'.format(lam_range_gal)
 
     flux=flux[mask]
     errors=errors[mask]
 
-
+    
     #Log rebin them
     galaxy, logLam, velscale = util.log_rebin(lam_range_gal, flux)
     noise, _, _=util.log_rebin(lam_range_gal, errors, velscale=velscale)   
@@ -1333,9 +1331,9 @@ def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NG
 
 def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', verbose=True):
 
-    fit_wavelengths=np.array([[6300, 10100]])
+    fit_wavelengths=np.array([[6300, 10120]])
 
-    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9600, 10100]])
+    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9600, 10090]])
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']
