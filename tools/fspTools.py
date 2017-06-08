@@ -42,8 +42,8 @@ def lnlike_CvD(theta, parameters, plot=False):
         positive_only_correction=get_correction(positive_only_interp, logLams, np.arange(len(positive_abundances)), positive_abundances, age, Z)
 
 
-    #import pdb; pdb.set_trace()
-    if not hasattr(positive_abundances,'__iter__'):
+
+    if not hasattr(general_abundances,'__iter__'):
         general_correction=general_interp((general_abundances, age, Z, logLams))
     else:
         general_correction=get_correction(general_interp, logLams, np.arange(len(general_abundances)), general_abundances, age, Z)
@@ -155,7 +155,7 @@ def lnlike_CvD(theta, parameters, plot=False):
             axs[i, 0].fill_between(x, g_plot-n_plot, g_plot+n_plot, facecolor='k', alpha=0.3)
 
             axs[i, 1].plot(x, 100*(g_plot-poly_plot*t_plot)/(poly_plot*t_plot), c='k', linewidth=1.5)
-            axs[i, 0].fill_between(x, n_plot, n_plot, facecolor='k', alpha=0.3)
+            axs[i, 1].fill_between(x, -100.0*n_plot, 100.0*n_plot, facecolor='k', alpha=0.3)
             axs[i, 1].axhline(0.0, linestyle='dashed', c='k')
 
             
