@@ -21,11 +21,11 @@ def lnlike_CvD(theta, parameters, plot=False):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3]
-    positive_abundances=theta[4]
-    T=theta[5]
-    Z=theta[6]
-    imf=theta[7]
+    general_abundances=theta[3:6]
+    positive_abundances=theta[7]
+    T=theta[8]
+    Z=theta[9]
+    imf=theta[10]
 
     
     #Don't fit age- keep it fixed at 13.5 Gyr
@@ -155,6 +155,7 @@ def lnlike_CvD(theta, parameters, plot=False):
             axs[i, 0].fill_between(x, g_plot-n_plot, g_plot+n_plot, facecolor='k', alpha=0.3)
 
             axs[i, 1].plot(x, 100*(g_plot-poly_plot*t_plot)/(poly_plot*t_plot), c='k', linewidth=1.5)
+            axs[i, 0].fill_between(x, n_plot, n_plot, facecolor='k', alpha=0.3)
             axs[i, 1].axhline(0.0, linestyle='dashed', c='k')
 
             
@@ -204,11 +205,11 @@ def lnprior_CvD(theta):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3]
-    positive_abundances=theta[4]
-    T=theta[5]
-    Z=theta[6]
-    imf=theta[7]
+    general_abundances=theta[3:6]
+    positive_abundances=theta[7]
+    T=theta[8]
+    Z=theta[9]
+    imf=theta[10]
     
     #Don't fit age- keep it fixed at 13.5 Gyr
     age=13.5
@@ -216,7 +217,7 @@ def lnprior_CvD(theta):
     if -1000.0 < vel < 10000.0 and 0.0 < sigma < 500.0:
 
         if np.all(general_abundances>=-0.45) and np.all(general_abundances<=0.45)  and np.all(positive_abundances>=0.0) and np.all(positive_abundances<=0.45) and -0.45 <= Na_abundance <= 1.0: 
-            if 1.0 < age <= 14.0 and -0.5 < Z < 0.4 and 0.5 < imf <3.5:
+            if 1.0 < age <= 14.0 and -0.5 < Z < 0.35 and 0.5 < imf <3.5:
                 if -50.0 < T < 50.0:
                     return 0.0
 
@@ -1337,8 +1338,8 @@ def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/S
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']
-    #normal_elems=['Ca', 'Fe', 'Ti', 'Mg']
-    normal_elems=['Mg']
+    normal_elems=['Ca', 'Fe', 'Ti', 'Mg']
+    #normal_elems=['Mg']
 
     #Try not fitting age, since we're not very sensitive to it in the SWIFT range.
     population_params=['Z', 'IMF']
