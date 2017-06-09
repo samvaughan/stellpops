@@ -21,7 +21,7 @@ def lnlike_CvD(theta, parameters, plot=False):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3:6]
+    general_abundances=theta[3:7]
     positive_abundances=theta[7]
     T=theta[8]
     Z=theta[9]
@@ -205,7 +205,7 @@ def lnprior_CvD(theta):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3:6]
+    general_abundances=theta[3:7]
     positive_abundances=theta[7]
     T=theta[8]
     Z=theta[9]
