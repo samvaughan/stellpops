@@ -21,11 +21,11 @@ def lnlike_CvD(theta, parameters, plot=False):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3:7]
-    positive_abundances=theta[7]
-    T=theta[8]
-    Z=theta[9]
-    imf=theta[10]
+    general_abundances=theta[3]
+    positive_abundances=theta[4]
+    T=theta[5]
+    Z=theta[6]
+    imf=theta[7]
 
     
     #Don't fit age- keep it fixed at 13.5 Gyr
@@ -205,11 +205,11 @@ def lnprior_CvD(theta):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3:7]
-    positive_abundances=theta[7]
-    T=theta[8]
-    Z=theta[9]
-    imf=theta[10]
+    general_abundances=theta[3]
+    positive_abundances=theta[4]
+    T=theta[5]
+    Z=theta[6]
+    imf=theta[7]
     
     #Don't fit age- keep it fixed at 13.5 Gyr
     age=13.5
@@ -1091,15 +1091,15 @@ def NGC1277_CVD_read_in_data_MN(file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.da
     ################################################################################################################################################################
 
 
-def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', c=299792.458):
+def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', c=299792.458):
     ##############################################################################################################################################################
 
     # Read in the central spectrum from CvD
     #
 
     import os
-    file=os.path.expanduser(file)
-    lamdas, flux, variance, inst_res=np.genfromtxt(file, unpack=True)
+    filename=os.path.expanduser(f)
+    lamdas, flux, variance, inst_res=np.genfromtxt(filename, unpack=True)
     #Redshift of NGC1277, used to get the initial velocity
     #z=0.017044
     errors=np.sqrt(variance)
@@ -1330,7 +1330,7 @@ def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NG
 ################################################################################
 
 
-def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', verbose=True):
+def NGC1277_CvD_set_up_emcee_parameters_SPV(filename = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', verbose=True):
 
     fit_wavelengths=np.array([[6300, 10120]])
 
@@ -1338,7 +1338,7 @@ def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/S
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']
-    normal_elems=['Ca', 'Fe', 'Ti', 'Mg']
+    normal_elems=['Mg']
     #normal_elems=['Mg']
 
     #Try not fitting age, since we're not very sensitive to it in the SWIFT range.
@@ -1351,7 +1351,7 @@ def NGC1277_CvD_set_up_emcee_parameters_SPV(file = '~/z/Data/IMF_Gold_Standard/S
     elements=(positive_only_elems, Na_elem, normal_elems)
     
 
-    galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_SPV(fit_wavelengths, file=file, c=c_light)
+    galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f=filename, c=c_light)
 
 
     pad=500.0
