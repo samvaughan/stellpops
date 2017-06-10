@@ -141,11 +141,13 @@ def lnlike_CvD(theta, parameters, plot=False):
 
             gmask=np.where((np.exp(logLam_gal)>plot_range[0]) & (np.exp(logLam_gal)<plot_range[1]))
 
-            
 
-            g_plot=g[gmask]
-            n_plot=n[gmask]
-            t_plot=t[gmask]
+
+            import pdb; pdb.set_trace()
+
+            g_plot=galaxy[gmask]
+            n_plot=noise[gmask]
+            t_plot=temp[gmask]
             poly_plot=poly[gmask]
 
 
@@ -1099,19 +1101,48 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standar
 
     import os
     filename=os.path.expanduser(f)
-    lamdas, flux, variance=np.genfromtxt(filename, unpack=True)
+    lamdas, flux, errors=np.genfromtxt(filename, unpack=True)
     #Redshift of NGC1277, used to get the initial velocity
-    #z=0.017044
-    errors=np.sqrt(variance)
-    lamdas*=10**4
+     
+    flux_median=np.median(flux)
+
+    #lamdas/=(1+z)
+
+    chip_gap_start=lamdas[1199]
+    chip_gap_stop=lamdas[1200]
+
+
+
+    gap=np.ones(int(chip_gap_stop-chip_gap_start)) 
+    flux=np.insert(flux/flux_median, 1199, gap)
+    errors=np.insert(errors/flux_median, 1199, gap)
+
+
+    chip_gap_start=lamdas[2799]
+    chip_gap_stop=lamdas[2800]
+
+    gap=np.ones(int(chip_gap_stop-chip_gap_start)) 
+    flux=np.insert(flux/flux_median, 2799, gap)
+    errors=np.insert(errors/flux_median, 2799, gap)
+
+    lamdas=np.linspace(lamdas[0], lamdas[-1], len(flux))
+
+
+    z=0.017044
+    #lamdas/=(1+z) 
+
+    #errors=np.sqrt(variance)
+    #lamdas*=10**4
 
     #The CvD data has a chip gap between 5625 and 7071 A. This screws up the fitting if you forget about it (obviously!).
     #This 'gap' array is insterted into the normalised flux and error arrays, before we mask it out in the fitting.
 
-    flux_median=np.median(flux)
+    
 
     # flux/=flux_median
     # errors/=flux_median
+
+
  
     lower=fit_wavelengths[0][0]
     upper=fit_wavelengths[-1][-1]
@@ -1121,14 +1152,19 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standar
     assert (lower>=lamdas.min()) & (upper<=lamdas.max()), 'Lower and upper limits must be within the wavelength ranges of the data'
 
     
-
-    
     mask=np.where((lamdas>lower) & (lamdas<upper))
     lam_range_gal=np.array([lamdas[mask][0], lamdas[mask][-1]])
     # print 'Lam Range Gal is {}'.format(lam_range_gal)
 
+
+    # import matplotlib.pyplot as plt 
+    # plt.ion()
+    # import pdb; pdb.set_trace()
+
     flux=flux[mask]
     errors=errors[mask]
+
+
 
     
     #Log rebin them
@@ -1332,9 +1368,10 @@ def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NG
 
 def NGC1277_CvD_set_up_emcee_parameters_SPV(filename = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', verbose=True):
 
-    fit_wavelengths=np.array([[6300, 10120]])
+    fit_wavelengths=np.array([[6300, 10199]])
 
-    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9800, 10195]])
+    #plot_wavelengths=np.array([[6355, 7400], [7700, 9000], [9810, 10199]])
+    plot_wavelengths=np.array([[6355, 7350], [7700, 8930], [9610, 9850]])
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']

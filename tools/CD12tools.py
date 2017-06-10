@@ -97,7 +97,7 @@ def loadCD12afe(basedir=cd12tools_basedir):
     s04 = loadCD12spec(basedir+"/CvD1.2/"+"t13.5_afe+0.4.ssp")
     return [s02,s03,s04]
 
-def load_all_CD12spec(base_dir=cd12tools_basedir, folder="CvD1.2", verbose=True):
+def load_all_CD12spec(base_dir=cd12tools_basedir, folder="CvD1.2", verbose=True, interpolate_linear_disperson=True):
     """
     SPV 9/01/17
     Load all CvD 12 spectra and save them as a dictionary, with their filenames as the keys (without the '.ssp' part)
@@ -117,11 +117,11 @@ def load_all_CD12spec(base_dir=cd12tools_basedir, folder="CvD1.2", verbose=True)
         if verbose:
             print 'Loading {}'.format(file)
         fname=os.path.basename(file)[:-4]
-        all_specs[fname]=loadCD12spec(file)
+        all_specs[fname]=loadCD12spec(file, interpolate_linear_disperson=interpolate_linear_disperson)
 
     return all_specs
 
-def loadCD12spec(filepath):
+def loadCD12spec(filepath,interpolate_linear_disperson=True):
     """
     Originally written by Simon Zieleniewski.
     Adapted by Ryan Houghton. 
@@ -162,11 +162,11 @@ def loadCD12spec(filepath):
     #Age of spectra in Gyrs
     Age = [float(fname.split('_')[0].split('t')[1])]*flux.shape[0]
     
-
-    #Interpolate to get linear dispersion
-    newlambs = np.linspace(lambs[0], lambs[-1], len(lambs))
-    finterp = interpolate.interp1d(lambs, flux, kind='linear', axis=-1)
-    newflux = finterp(newlambs)
+    if interpolate_linear_disperson:
+        #Interpolate to get linear dispersion
+        newlambs = np.linspace(lambs[0], lambs[-1], len(lambs))
+        finterp = interpolate.interp1d(lambs, flux, kind='linear', axis=-1)
+        newflux = finterp(newlambs)
 
     #Get mass file
     masspath = filepath.split(fname)[0]
@@ -197,12 +197,25 @@ def loadCD12spec(filepath):
         massloc = np.where(masses[:,0]==IMF)[0]
         masses = masses[massloc[0],1:]
         mass = float(masses[masspos[uAge]-1])
+
+
         
-        abunlist = {'abundances': ['[Na/Fe] = +0.3', '[Na/Fe] = -0.3','[Ca/Fe] = +0.15', '[Ca/Fe] = -0.15',
-                '[Fe/H] = +0.3', '[Fe/H] = -0.3', '[C/Fe] = +0.15', '[C/Fe] = -0.15',
-                '[a/Fe] = +0.2', '[as/Fe] = +0.2', '[N/Fe] = +0.3', '[N/Fe] = -0.3',
-                '[Ti/Fe] = +0.3', '[Ti/Fe] = -0.3', '[Mg/Fe] = +0.3', '[Mg/Fe] = -0.3',
-                '[Si/Fe] = +0.3', '[Si/Fe] = -0.3']}
+        element_list=['Na+', 'Na-','Ca+', 'Ca-',
+                'Fe+', 'Fe-', 'C+', 'C-',
+                'a/Fe+', 'as/Fe+', 'N+', 'N-',
+                'Ti+', 'Ti-', 'Mg+', 'Mg-',
+                'Si+', 'Si-']
+
+        # abunlist={'abundances': ['[Na/Fe] = +0.3', '[Na/Fe] = -0.3','[Ca/Fe] = +0.15', '[Ca/Fe] = -0.15',
+        #         '[Fe/H] = +0.3', '[Fe/H] = -0.3', '[C/Fe] = +0.15', '[C/Fe] = -0.15',
+        #         '[a/Fe] = +0.2', '[as/Fe] = +0.2', '[N/Fe] = +0.3', '[N/Fe] = -0.3',
+        #         '[Ti/Fe] = +0.3', '[Ti/Fe] = -0.3', '[Mg/Fe] = +0.3', '[Mg/Fe] = -0.3',
+        #         '[Si/Fe] = +0.3', '[Si/Fe] = -0.3']}
+
+        varelem_dict={}
+        for element in element_list:
+            varelem_dict[element]
+
         return ST.spectrum(lamspec=newflux, lam=newlambs, age=Age,
                           Z=met, IMF=IMF, model='CD12', userdict=abunlist,
                           mass=mass, wavesyst="vac")
@@ -210,6 +223,28 @@ def loadCD12spec(filepath):
     else:
         raise ValueError('Did not input correct CD12 file [as of 03-04-14]')
 
+def get_CvD12_element_spectra(filename):
+    file_element_list=['Na+', 'Na-','Ca+', 'Ca-',
+    'Fe+', 'Fe-', 'C+', 'C-',
+    'a/Fe+', 'as/Fe+', 'N+', 'N-',
+    'Ti+', 'Ti-', 'Mg+', 'Mg-',
+    'Si+', 'Si-']
+
+
+    data=np.genfromtxt(filename)
+
+    lamdas=data[:, 0].copy()
+
+    template_dict={}
+
+    for i, element in enumerate(file_element_list):
+        template_dict[element]=ST.spectrum(lamdas, data[:, i+1], wavesyst="vac")
+
+    temp_lamdas, x35, x3, x23, chab, bl=np.genfromtxt(expanduser('~/z/Data/stellarpops/CvD1.2/t13.5_solar.ssp'), unpack=True)
+
+    template_dict['Solar']=ST.spectrum(temp_lamdas, chab, wavesyst="vac")
+
+    return template_dict
 
 
 ################################################################################################################################################################################################
