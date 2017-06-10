@@ -607,7 +607,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
                 for d, _ in enumerate(Zs):
 
                     if step !=0.0:
-                        y=(var_elem_spectra[elem].flam[b, c, t_mask]/var_elem_spectra['Solar'].flam[b, c, t_mask] - 1.0)*((10**(step)-1.0)/(10**(0.3)-1.0))
+                        y=(var_elem_spectra[elem].flam[c, d, t_mask]/var_elem_spectra['Solar'].flam[c, d, t_mask] - 1.0)*((10**(step)-1.0)/(10**(0.3)-1.0))
 
 
                     else:
@@ -709,7 +709,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
 
                 else:
 
-                    y=np.zeros_like(var_elem_spectra['Solar'].flam[c, d, t_mask])
+                    y=np.zeros_like(var_elem_spectra['Solar'].flam[b, c, t_mask])
 
 
                 x=var_elem_spectra[e].lam[t_mask]
@@ -749,7 +749,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
 
                 else:
 
-                    y=np.zeros_like(var_elem_spectra['Solar'].flam[c, d, t_mask])
+                    y=np.zeros_like(var_elem_spectra['Solar'].flam[b, c, t_mask])
 
 
                 x=var_elem_spectra[e].lam[t_mask]
