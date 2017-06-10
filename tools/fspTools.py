@@ -1099,7 +1099,7 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standar
 
     import os
     filename=os.path.expanduser(f)
-    lamdas, flux, variance, inst_res=np.genfromtxt(filename, unpack=True)
+    lamdas, flux, variance=np.genfromtxt(filename, unpack=True)
     #Redshift of NGC1277, used to get the initial velocity
     #z=0.017044
     errors=np.sqrt(variance)
@@ -1334,7 +1334,7 @@ def NGC1277_CvD_set_up_emcee_parameters_SPV(filename = '~/z/Data/IMF_Gold_Standa
 
     fit_wavelengths=np.array([[6300, 10120]])
 
-    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9600, 10090]])
+    plot_wavelengths=np.array([[6300, 7300], [7300, 8000], [8000, 9000], [9800, 10195]])
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']
