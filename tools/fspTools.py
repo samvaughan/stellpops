@@ -9,7 +9,7 @@ import scipy.constants as const
 #Speed of light in km/s
 c_light = const.c/1000.0
 ################################################################################################################################################################
-def lnlike_CvD(theta, parameters, plot=False):
+def lnlike_CvD(theta, parameters, ret_specs=False):
 
     galaxy, noise, velscale, goodpixels, vsyst, interp_funct, correction_interps, logLams, logLam_gal, fit_wavelengths, plot_wavelengths=parameters
 
@@ -66,28 +66,9 @@ def lnlike_CvD(theta, parameters, plot=False):
 
     fit_ranges=fit_wavelengths*(np.exp(vel/c_light))
     plot_ranges=plot_wavelengths*(np.exp(vel/c_light))
+    
 
-    #Do all the plotting, if required
-    if plot==True:
-        import matplotlib.pyplot as plt 
-        import matplotlib.gridspec as gridspec
-        import matplotlib.ticker as ticker   
 
-        gs_1 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
-        gs_2 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
-        gs_3 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
-        gs_4 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
-        
-
-        fig=plt.figure(figsize=(14, 10))
-        axs=np.empty((4, 2), dtype='object')
-        outer_grid=gridspec.GridSpec(2, 2)
-
-        for i in range(4):
-            inner_grid = gridspec.GridSpecFromSubplotSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1], subplot_spec=outer_grid[i//2, i%2], hspace=0.0)
-            axs[i, 0] = fig.add_subplot(inner_grid[0, :2])
-            axs[i, 1] = fig.add_subplot(inner_grid[1, :2], sharex=axs[i, 0])
-            plt.setp(axs[i, 0].get_xticklabels(), visible=False)
 
 
 
@@ -103,17 +84,24 @@ def lnlike_CvD(theta, parameters, plot=False):
 
 
     #mask telluric features and H alpha
-    telluric_lams=[[6718, 6870], [7454, 7574]]
-    telluric_mask=make_mask(logLam_gal, telluric_lams)
+    #telluric_lams=[[6718, 6870], [7454, 7574]]
+    #telluric_mask=make_mask(logLam_gal, telluric_lams)
 
     Ha_lam=[[6519, 6618]]
     Ha_mask=make_mask(logLam_gal, Ha_lam)
 
-    pixel_mask=telluric_mask & Ha_mask
-
+    #pixel_mask=telluric_mask & Ha_mask
+    pixel_mask=Ha_mask
 
     chisqs=np.zeros_like(galaxy)
     #import pdb; pdb.set_trace()
+
+    if ret_specs:
+        lams=[]
+        specs=[]
+        temps=[]
+        errors=[]
+
     for i, fit_range in enumerate(fit_ranges):
         #tmask=np.where((np.exp(logLams)>fit_range[0]) & (np.exp(logLams)<fit_range[1]))
         gmask=(np.exp(logLam_gal)>fit_range[0]) & (np.exp(logLam_gal)<fit_range[1])
@@ -129,67 +117,103 @@ def lnlike_CvD(theta, parameters, plot=False):
 
         chisqs[gmask]=(((g-t*poly)/n)**2)
 
-
-    chisq=np.sum(chisqs[pixel_mask])
-
-
-
-    if plot:
-        for i, plot_range in enumerate(plot_ranges):
+        if ret_specs:
+            lams.append(np.exp(logLam_gal[gmask]))
+            temps.append(poly*t)
+            errors.append(n)
+            specs.append(g)
 
 
+        chisq=np.sum(chisqs[pixel_mask])
 
-            gmask=np.where((np.exp(logLam_gal)>plot_range[0]) & (np.exp(logLam_gal)<plot_range[1]))
+    if ret_specs:
+        lams=np.concatenate(lams)
+        temps=np.concatenate(temps)
+        errors=np.concatenate(errors)
+        specs=np.concatenate(specs)
+        return -0.5*chisq, [lams, temps, errors, specs]
 
-
-
-            import pdb; pdb.set_trace()
-
-            g_plot=galaxy[gmask]
-            n_plot=noise[gmask]
-            t_plot=temp[gmask]
-            poly_plot=poly[gmask]
-
-
-            x=np.exp(logLam_gal[gmask])/(np.exp(vel/c_light))
-            axs[i, 0].plot(x, g_plot, c='k', linewidth=1.5)
-            axs[i, 0].plot(x, poly_plot*t_plot, c='b', linewidth=2.0)
-            axs[i, 0].fill_between(x, g_plot-n_plot, g_plot+n_plot, facecolor='k', alpha=0.3)
-
-            axs[i, 1].plot(x, 100*(g_plot-poly_plot*t_plot)/(poly_plot*t_plot), c='k', linewidth=1.5)
-            axs[i, 1].fill_between(x, -100.0*n_plot, 100.0*n_plot, facecolor='k', alpha=0.3)
-            axs[i, 1].axhline(0.0, linestyle='dashed', c='k')
-
-            
-            axs[i, 0].set_xlim([x.min(), x.max()])
-            axs[i, 1].set_ylim([-5, 5])
-
-            axs[i, 1].set_xlabel('Rest Wavelength (A)')
-            axs[i, 0].set_ylabel('Flux (Arbitrary Units)')
-            axs[i, 1].set_ylabel('Residuals (%)')
-
-            #Avoid the overlapping labels
-            axs[i, 0].yaxis.set_major_locator(ticker.MaxNLocator(prune='lower'))
-            axs[i, 1].yaxis.set_major_locator(ticker.MultipleLocator(2))
-
-            for pair in telluric_lams:
-                axs[i, 0].axvspan(pair[0], pair[1], alpha=0.5, color='grey')
-                axs[i, 1].axvspan(pair[0], pair[1], alpha=0.5, color='grey')
-
-            axs[i, 0].axvspan(Ha_lam[0][0], Ha_lam[0][1], alpha=0.5, color='grey')
-            axs[i, 1].axvspan(Ha_lam[0][0], Ha_lam[0][1], alpha=0.5, color='grey')
-
-            
-            
-
-
-
-
-    if plot:
-        return -0.5*chisq, (fig, axs)
 
     return -0.5*chisq#, return_models, return_gals
 
+def plot_fit(theta, parameters):
+
+    chisq, [lams, temps, errors, specs]=lnlike_CvD(theta, parameters, ret_specs=True)
+
+
+    #telluric_lams=[[6718, 6870], [7454, 7574]]
+    #telluric_mask=make_mask(logLam_gal, telluric_lams)
+
+    Ha_lam=[[6519, 6618]]
+    #Ha_mask=make_mask(logLam_gal, Ha_lam)
+
+    #pixel_mask=telluric_mask & Ha_mask
+    #pixel_mask= Ha_mask
+
+    vel, sigma=theta[0], theta[1]
+
+    galaxy, noise, velscale, goodpixels, vsyst, interp_funct, correction_interps, logLams, logLam_gal, fit_wavelengths, plot_wavelengths=parameters
+
+    import matplotlib.pyplot as plt 
+    import matplotlib.gridspec as gridspec
+    import matplotlib.ticker as ticker   
+
+    gs_1 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
+    gs_2 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
+    gs_3 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
+    gs_4 = gridspec.GridSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1])
+    
+
+    fig=plt.figure(figsize=(14, 10))
+    axs=np.empty((4, 2), dtype='object')
+    outer_grid=gridspec.GridSpec(2, 2)
+
+    for i in range(4):
+        inner_grid = gridspec.GridSpecFromSubplotSpec(2, 2, width_ratios=[1, 1], height_ratios=[2, 1], subplot_spec=outer_grid[i//2, i%2], hspace=0.0)
+        axs[i, 0] = fig.add_subplot(inner_grid[0, :2])
+        axs[i, 1] = fig.add_subplot(inner_grid[1, :2], sharex=axs[i, 0])
+        plt.setp(axs[i, 0].get_xticklabels(), visible=False)
+
+
+    plot_ranges=plot_wavelengths*(np.exp(vel/c_light))
+    #import pdb; pdb.set_trace()
+    for i, plot_range in enumerate(plot_ranges):
+
+        gmask=(lams>plot_range[0]) & (lams<plot_range[1])
+
+        g_plot=specs[gmask]
+        n_plot=errors[gmask]
+        t_plot=temps[gmask]
+
+        x=lams[gmask]/(np.exp(vel/c_light))
+        axs[i, 0].plot(x, g_plot, c='k', linewidth=1.5)
+        axs[i, 0].plot(x, t_plot, c='b', linewidth=2.0)
+        axs[i, 0].fill_between(x, g_plot-n_plot, g_plot+n_plot, facecolor='k', alpha=0.3)
+
+        axs[i, 1].plot(x, 100*(g_plot-t_plot)/(t_plot), c='k', linewidth=1.5)
+        axs[i, 1].fill_between(x, -100.0*n_plot, 100.0*n_plot, facecolor='k', alpha=0.3)
+        axs[i, 1].axhline(0.0, linestyle='dashed', c='k')
+
+
+        axs[i, 0].set_xlim([x.min(), x.max()])
+        axs[i, 1].set_ylim([-5, 5])
+
+        axs[i, 1].set_xlabel('Rest Wavelength (A)')
+        axs[i, 0].set_ylabel('Flux (Arbitrary Units)')
+        axs[i, 1].set_ylabel('Residuals (%)')
+
+        #Avoid the overlapping labels
+        axs[i, 0].yaxis.set_major_locator(ticker.MaxNLocator(prune='lower'))
+        axs[i, 1].yaxis.set_major_locator(ticker.MultipleLocator(2))
+
+        #for pair in telluric_lams:
+        #    axs[i, 0].axvspan(pair[0], pair[1], alpha=0.5, color='grey')
+        #    axs[i, 1].axvspan(pair[0], pair[1], alpha=0.5, color='grey')
+
+        axs[i, 0].axvspan(Ha_lam[0][0], Ha_lam[0][1], alpha=0.5, color='grey')
+        axs[i, 1].axvspan(Ha_lam[0][0], Ha_lam[0][1], alpha=0.5, color='grey')
+
+    return chisq, (fig, axs)
 
 def lnprob_CvD(theta, parameters):
 
@@ -1102,20 +1126,18 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standar
     import os
     filename=os.path.expanduser(f)
     lamdas, flux, errors=np.genfromtxt(filename, unpack=True)
-    #Redshift of NGC1277, used to get the initial velocity
-     
+
+
     flux_median=np.median(flux)
 
-    #lamdas/=(1+z)
 
     chip_gap_start=lamdas[1199]
     chip_gap_stop=lamdas[1200]
 
 
-
     gap=np.ones(int(chip_gap_stop-chip_gap_start)) 
     flux=np.insert(flux/flux_median, 1199, gap)
-    errors=np.insert(errors/flux_median, 1199, gap)
+    errors=np.insert(errors/flux_median, 1199, gap*0.001)
 
 
     chip_gap_start=lamdas[2799]
@@ -1123,32 +1145,32 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standar
 
     gap=np.ones(int(chip_gap_stop-chip_gap_start)) 
     flux=np.insert(flux/flux_median, 2799, gap)
-    errors=np.insert(errors/flux_median, 2799, gap)
+    errors=np.insert(errors/flux_median, 2799, gap*0.001)
+    
+    #Add on 200 ones to the end
+    n_end_gap=200
+    gap=np.ones(n_end_gap)
+    flux=np.insert(flux/flux_median, -1, gap)
+    errors=np.insert(errors/flux_median, -1, gap*0.001)
 
-    lamdas=np.linspace(lamdas[0], lamdas[-1], len(flux))
 
-
-    z=0.017044
+    lamdas=np.linspace(lamdas[0], lamdas[-1]+n_end_gap, len(flux))
     #lamdas/=(1+z) 
 
     #errors=np.sqrt(variance)
     #lamdas*=10**4
-
-    #The CvD data has a chip gap between 5625 and 7071 A. This screws up the fitting if you forget about it (obviously!).
-    #This 'gap' array is insterted into the normalised flux and error arrays, before we mask it out in the fitting.
-
-    
 
     # flux/=flux_median
     # errors/=flux_median
 
 
  
-    lower=fit_wavelengths[0][0]
-    upper=fit_wavelengths[-1][-1]
-    # lower=lamdas.min()
-    # upper=lamdas.max()
+    #lower=fit_wavelengths[0][0]
+    #upper=fit_wavelengths[-1][-1]
+    lower=lamdas.min()
+    upper=lamdas.max()
     
+
     assert (lower>=lamdas.min()) & (upper<=lamdas.max()), 'Lower and upper limits must be within the wavelength ranges of the data'
 
     
@@ -1348,6 +1370,7 @@ def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NG
     galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_MN(file=file, c=c_light)
 
 
+
     pad=500.0
     lam_range_temp = [lam_range_gal[0]-pad, lam_range_gal[1]+pad]
     linear_interp, logLam_template =prepare_CvD_interpolator(lam_range_temp, velscale, verbose=True)
@@ -1368,10 +1391,11 @@ def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NG
 
 def NGC1277_CvD_set_up_emcee_parameters_SPV(filename = '~/z/Data/IMF_Gold_Standard/SPV_NGC1277.dat', verbose=True):
 
-    fit_wavelengths=np.array([[6300, 10199]])
-
+    fit_wavelengths=np.array([[6300, 7400], [7600, 8050], [8050, 8900], [9620, 10020]])#/(1+0.017044)
+    plot_wavelengths=fit_wavelengths.copy()#*(1+0.017044)
     #plot_wavelengths=np.array([[6355, 7400], [7700, 9000], [9810, 10199]])
-    plot_wavelengths=np.array([[6355, 7350], [7700, 8930], [9610, 9850]])
+    #plot_wavelengths=np.array([[6200, 7300], [7600,  8000], [8000, 9100], [9660, 10020]])
+
 
     positive_only_elems=['as/Fe+']#, 'as/Fe+']
     Na_elem=['Na']
@@ -1389,6 +1413,7 @@ def NGC1277_CvD_set_up_emcee_parameters_SPV(filename = '~/z/Data/IMF_Gold_Standa
     
 
     galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f=filename, c=c_light)
+
 
 
     pad=500.0

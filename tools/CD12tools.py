@@ -241,8 +241,18 @@ def get_CvD12_element_spectra(filename):
         template_dict[element]=ST.spectrum(lamdas, data[:, i+1], wavesyst="vac")
 
     temp_lamdas, x35, x3, x23, chab, bl=np.genfromtxt(expanduser('~/z/Data/stellarpops/CvD1.2/t13.5_solar.ssp'), unpack=True)
-
     template_dict['Solar']=ST.spectrum(temp_lamdas, chab, wavesyst="vac")
+
+
+    data=np.genfromtxt(expanduser('~/z/Data/stellarpops/CvD1.2/CvD12_T_data.ssp'))
+    T_lam=data[:, 0]
+    T_solar=data[:, 1]
+    T_plus=data[:, 24]
+    T_minus=data[:, 25]
+
+    template_dict['T_solar']=ST.spectrum(T_lam, T_solar, wavesyst="vac")
+    template_dict['T+']=ST.spectrum(T_lam, T_plus, wavesyst="vac")
+    template_dict['T-']=ST.spectrum(T_lam, T_minus, wavesyst="vac")
 
     return template_dict
 
