@@ -254,6 +254,21 @@ def get_CvD12_element_spectra(filename):
     template_dict['T+']=ST.spectrum(T_lam, T_plus, wavesyst="vac")
     template_dict['T-']=ST.spectrum(T_lam, T_minus, wavesyst="vac")
 
+    data2=np.genfromtxt(expanduser('~/z/Data/stellarpops/CvD2/atlas_rfn_v3/atlas_ssp_t13_Zp0.0.abund.krpa.s100'))
+    Na_lam=data2[:, 0]
+    Na_solar=data2[:, 1]
+    Na_plus3=data2[:, 2]
+    Na_minus3=data2[:, 3]
+    Na_plus6=data2[:, -2]
+    Na_plus9=data2[:, -1]
+
+    template_dict['Na_solar']=ST.spectrum(Na_lam, Na_solar, wavesyst="vac")
+    template_dict['Na+']=ST.spectrum(Na_lam, Na_plus3, wavesyst="vac")
+    template_dict['Na-']=ST.spectrum(Na_lam, Na_minus3, wavesyst="vac")
+    template_dict['Na+0.6']=ST.spectrum(Na_lam, Na_plus6, wavesyst="vac")
+    template_dict['Na+0.9']=ST.spectrum(Na_lam, Na_plus9, wavesyst="vac")
+
+
     return template_dict
 
 

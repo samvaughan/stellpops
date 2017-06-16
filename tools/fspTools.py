@@ -799,7 +799,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
 
 
 
-    return [general_templates, na_templates, positive_only_templates, T_templates], logLam_template
+    return [general_templates, na_templates, positive_only_templates, T_templates, na_templates], logLam_template
 
 
 
