@@ -9,7 +9,7 @@ import scipy.constants as const
 #Speed of light in km/s
 c_light = const.c/1000.0
 ################################################################################################################################################################
-def lnlike_CvD(theta, parameters, ret_specs=False):
+def lnlike_CvD_TEST(theta, parameters, ret_specs=False):
 
     galaxy, noise, velscale, goodpixels, vsyst, interp_funct, correction_interps, logLams, logLam_gal, fit_wavelengths, plot_wavelengths=parameters
 
@@ -21,17 +21,18 @@ def lnlike_CvD(theta, parameters, ret_specs=False):
 
     vel, sigma=theta[0], theta[1]
     Na_abundance=theta[2]
-    general_abundances=theta[3]
-    positive_abundances=theta[4]
-    T=theta[5]
-    Z=theta[6]
-    imf=theta[7]
+    general_abundances=theta[3:10]
+    positive_abundances=theta[11]
+    T=theta[12]
+    Z=theta[13]
+    imf_x1=theta[14]
+    imf_x2=theta[15]
 
     
     #Don't fit age- keep it fixed at 13.5 Gyr
     age=13.5
 
-    base_template=make_model_CvD(age, Z, imf, interp_funct, logLams)
+    base_template=make_model_CvD(age, Z, imf_x1, imf_x2, interp_funct, logLams)
 
 
     #If positive abundances has only one element, run it as a usual interpoaltor without going through the get correction function
@@ -138,7 +139,7 @@ def lnlike_CvD(theta, parameters, ret_specs=False):
 
 def plot_fit(theta, parameters):
 
-    chisq, [lams, temps, errors, specs]=lnlike_CvD(theta, parameters, ret_specs=True)
+    chisq, [lams, temps, errors, specs]=lnlike_CvD_TEST(theta, parameters, ret_specs=True)
 
 
     #telluric_lams=[[6718, 6870], [7454, 7574]]
@@ -252,9 +253,9 @@ def lnprior_CvD(theta):
 
 
 
-def make_model_CvD(age, Z, imf, interp_funct, logLams):
+def make_model_CvD(age, Z, imf_x1, imf_x2, interp_funct, logLams):
 
-    model=interp_funct((logLams, age, Z, imf))
+    model=interp_funct((logLams, age, Z, imf_x1, imf_x2))
 
     return model
 
@@ -570,12 +571,69 @@ def prepare_CvD2_templates(templates_lam_range, velscale, verbose=True):
 
                 templates[:, b, a, c]=sspNew/np.median(sspNew)
 
-    
-  
+    return templates, logLam_template
+
+def prepare_CvD2_templates_twopartIMF(templates_lam_range, velscale, verbose=True):
+    import glob
+    import os
+    template_glob=os.path.expanduser('~/z//Data/stellarpops/CvD2/vcj_twopartimf/vcj_ssp_v8/VCJ_v8_mcut0.08_t*')
+
+    vcj_models=sorted(glob.glob(template_glob))
+    models=np.genfromtxt(vcj_models[-1])
+
+    temp_lamdas=models[:, 0]
+
+    n_ages=7
+    n_zs=5
+    n_imfs=16
 
     
 
 
+    Zs=['m1.5', 'm1.0', 'm0.5', 'p0.0', 'p0.2']
+    ages=['01.0', '03.0', '05.0', '07.0', '09.0', '11.0', '13.5']
+    imfs_X1=0.5+np.arange(n_imfs)/5.0
+    imfs_X2=0.5+np.arange(n_imfs)/5.0
+
+    t_mask = ((temp_lamdas > templates_lam_range[0]) & (temp_lamdas <templates_lam_range[1]))
+
+
+
+    y=models[t_mask, 1]
+    x=temp_lamdas[t_mask]
+    #Make a new lamda array, carrying on the delta lamdas of high resolution bit
+    new_x=temp_lamdas[t_mask][0]+0.9*(np.arange(np.ceil((temp_lamdas[t_mask][-1]-temp_lamdas[t_mask][0])/0.9))+1)
+    interp=si.interp1d(x, y, fill_value='extrapolate')
+    out=interp(new_x)
+
+    sspNew, logLam_template, template_velscale = util.log_rebin(templates_lam_range, out, velscale=velscale)
+    templates=np.empty((len(sspNew), n_ages, n_zs, len(imfs_X1), len(imfs_X2)))
+
+    #REsolution of the templates in km/s
+
+    for a, Z in enumerate(Zs):    
+        for b, age in enumerate(ages):
+            model=glob.glob(os.path.expanduser('~/z/Data/stellarpops/CvD2/vcj_twopartimf/vcj_ssp_v8/VCJ_v8_mcut0.08_t{}*{}.ssp.imf_varydoublex.s100'.format(age, Z)))[0]
+            print 'Loading {}'.format(model)
+            data=np.genfromtxt(model)
+
+            for c, counter1 in enumerate(imfs_X1):
+                for d, counter2 in enumerate(imfs_X2):
+                
+                    #Interpolate templates onto a uniform wavelength grid and then log-rebin
+                    y=data[:, c*n_imfs+d+1][t_mask]   
+                    x=temp_lamdas[t_mask]
+                    
+                    #Make a new lamda array, carrying on the delta lamdas of high resolution bit
+                    new_x=temp_lamdas[t_mask][0]+0.9*(np.arange(np.ceil((temp_lamdas[t_mask][-1]-temp_lamdas[t_mask][0])/0.9))+1)
+
+                    interp=si.interp1d(x, y, fill_value='extrapolate')
+                    out=interp(new_x)
+
+                    #log rebin them
+                    sspNew, logLam_template, template_velscale = util.log_rebin(templates_lam_range, out, velscale=velscale)                
+
+                    templates[:, b, a, c, d]=sspNew#/np.median(sspNew)
 
     return templates, logLam_template
 
@@ -799,7 +857,7 @@ def prepare_CvD2_element_templates(templates_lam_range, velscale, elements, verb
 
 
 
-    return [general_templates, na_templates, positive_only_templates, T_templates, na_templates], logLam_template
+    return [general_templates, na_templates, positive_only_templates, T_templates], logLam_template
 
 
 
@@ -820,6 +878,31 @@ def prepare_CvD_interpolator(templates_lam_range, velscale, verbose=True):
     return linear_interp, logLam_template
 
 ################################################################################################################################################################
+
+################################################################################################################################################################
+def prepare_CvD_interpolator_twopartIMF(templates_lam_range, velscale, verbose=True):
+
+    templates, logLam_template=prepare_CvD2_templates_twopartIMF(templates_lam_range, velscale, verbose=verbose)
+
+    nimfs=16
+    ages=[  1.,   3.,   5.,  7., 9.,  11.0, 13.5]
+    Zs=[-1.5, -1.0, -0.5, 0.0, 0.2]
+    n_imfs=16
+    imfs_X1=0.5+np.arange(n_imfs)/5.0
+    imfs_X2=0.5+np.arange(n_imfs)/5.0
+
+
+    linear_interp=si.RegularGridInterpolator(((logLam_template, ages, Zs, imfs_X1, imfs_X2)), templates, bounds_error=False, fill_value=None)
+
+    return linear_interp, logLam_template
+
+################################################################################################################################################################
+
+
+
+
+
+
 
 ################################################################################################################################################################
 def prepare_CvD_correction_interpolators(templates_lam_range, velscale, elements, verbose=True, element_imf='kroupa'):
@@ -1200,6 +1283,86 @@ def NGC1277_CVD_read_in_data_SPV(fit_wavelengths, f = '~/z/Data/IMF_Gold_Standar
 
     return galaxy, noise, velscale, goodpixels, lam_range_gal, logLam
 
+def test_spectrum(fit_wavelengths, sigma, SN, c=299792.458):
+    ##############################################################################################################################################################
+
+    # Read in the central spectrum from CvD
+    #
+
+    import os
+    from stellarpops.tools import specTools as ST
+    data=np.genfromtxt(os.path.expanduser('~/z/Data/stellarpops/CvD2/vcj_twopartimf/vcj_ssp_v8/VCJ_v8_mcut0.08_t11.0_Zm1.0.ssp.imf_varydoublex.s100'))
+
+    lamdas=data[:, 0]
+    flux=data[:, -1]
+    flux*=10000 #X1 and X2 are 3.5
+    flux_median=np.median(flux)
+
+    
+    ####### TO DO ########
+    #SN=flux/errors
+    #errors.flux/SN
+    errors=np.abs([np.random.normal(0.0, f/SN) for f in flux])
+    errors/=np.median(flux)
+    flux/=flux_median
+
+    flux_errors=flux+errors
+    flux_errors/=np.median(flux_errors)
+
+
+    conv_sigma=np.sqrt(sigma**2-100.0**2)
+    spec=ST.spectrum(lamdas, flux_errors, wavesyst='vac')
+    nonoise_spec=ST.spectrum(lamdas, flux, wavesyst='vac')
+
+    spec.gaussVelConvolve(0.0, conv_sigma)
+    f_conv=spec.flam[0, :]
+
+    nonoise_spec.gaussVelConvolve(0.0, conv_sigma)
+    f_conv_nn=nonoise_spec.flam[0, :]
+
+    #lamdas/=(1+z) 
+
+    #errors=np.sqrt(variance)
+    #lamdas*=10**4
+
+    # flux/=flux_median
+    # errors/=flux_median
+
+
+ 
+    lower=fit_wavelengths[0][0]
+    upper=fit_wavelengths[-1][-1]
+
+    
+
+    assert (lower>=lamdas.min()) & (upper<=lamdas.max()), 'Lower and upper limits must be within the wavelength ranges of the data'
+
+    
+    mask=np.where((lamdas>lower) & (lamdas<upper))
+    lam_range_gal=np.array([lamdas[mask][0], lamdas[mask][-1]])
+    # print 'Lam Range Gal is {}'.format(lam_range_gal)
+
+
+    # import matplotlib.pyplot as plt 
+    # plt.ion()
+    # import pdb; pdb.set_trace()
+
+    flux=flux[mask]
+    errors=errors[mask]
+
+
+
+    
+    #Log rebin them
+    galaxy, logLam, velscale = util.log_rebin(lam_range_gal, flux)
+    noise, _, _=util.log_rebin(lam_range_gal, errors, velscale=velscale)   
+
+
+    #GoodPixels from pPXF
+    goodpixels = np.arange(len(galaxy)) 
+    
+
+    return galaxy, noise, velscale, goodpixels, lam_range_gal, logLam
 
 
 
@@ -1340,7 +1503,7 @@ def NGC1277_CvD_set_up_emcee_parameters_CvD(file = '~/z/Data/IMF_Gold_Standard/n
 
     pad=500.0
     lam_range_temp = [lam_range_gal[0]-pad, lam_range_gal[1]+pad]
-    linear_interp, logLam_template =prepare_CvD_interpolator(lam_range_temp, velscale, verbose=True)
+    linear_interp, logLam_template =prepare_CvD_interpolator_twopartIMF(lam_range_temp, velscale, verbose=True)
     correction_interps, logLam_template=prepare_CvD_correction_interpolators(lam_range_temp, velscale, elements, verbose=True)
 
 
@@ -1351,6 +1514,40 @@ def NGC1277_CvD_set_up_emcee_parameters_CvD(file = '~/z/Data/IMF_Gold_Standard/n
 
 
     return [galaxy, noise, velscale, goodpixels, dv, linear_interp, correction_interps, logLam_template, logLam_gal, fit_wavelengths, fit_wavelengths], logLam_gal, ndim
+
+
+def NGC1277_CvD_set_up_emcee_parameters_CvD(file = '~/z/Data/IMF_Gold_Standard/n1277b_cen.dat', verbose=True):
+
+    #positive_only_elems=['Cr+', 'Ni+', 'Co+', 'Eu+', 'Sr+', 'K+', 'V+', 'Cu+', 'as/Fe+']
+    positive_only_elems=['as/Fe+']
+    Na_elem=['Na']
+    #normal_elems=['Ca', 'Fe', 'C', 'N', 'Ti', 'Mg']
+    normal_elems=['Ca', 'Fe', 'C', 'N', 'Ti', 'Mg', 'Si']
+
+    assert len(positive_only_elems)==1, 'Need to change the code if you want more than 1 positive element!'
+
+    elements=(positive_only_elems, Na_elem, normal_elems)
+
+    fit_wavelengths=np.array([[4000, 4700], [4700, 5500], [8000,  9100], [9600, 10150]])
+    
+
+    galaxy, noise, velscale, goodpixels, lam_range_gal, logLam_gal=NGC1277_CVD_read_in_data_CvD(file=file, c=c_light)
+
+
+    pad=500.0
+    lam_range_temp = [lam_range_gal[0]-pad, lam_range_gal[1]+pad]
+    linear_interp, logLam_template =prepare_CvD_interpolator_twopartIMF(lam_range_temp, velscale, verbose=True)
+    correction_interps, logLam_template=prepare_CvD_correction_interpolators(lam_range_temp, velscale, elements, verbose=True)
+
+
+    dv = c_light*np.log(lam_range_temp[0]/lam_range_gal[0])  # km/s
+
+    #ndim is number of elements plus V, Sigma plus age, IMF and Z
+    ndim=len(positive_only_elems)+len(Na_elem)+len(normal_elems)+2+3
+
+
+    return [galaxy, noise, velscale, goodpixels, dv, linear_interp, correction_interps, logLam_template, logLam_gal, fit_wavelengths, fit_wavelengths], logLam_gal, ndim
+
 
 def NGC1277_CvD_set_up_emcee_parameters_MN(file = '~/z/Data/IMF_Gold_Standard/NGC1277_RAD0.00_PPXF_NEW.cxt', verbose=True):
 
